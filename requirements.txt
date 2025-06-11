@@ -1,0 +1,4 @@
+ hidapi
+opencv-python
+pillow
+numpy
