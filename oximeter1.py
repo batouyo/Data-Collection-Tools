@@ -34,6 +34,7 @@ class OximeterDataCollector:
         self.data_dir = os.path.join(os.getcwd(), "oximeter_data")
         self.session_id = None
         self.csv_file_path = None
+        self.csv_file_name = "oximeter_data.csv"  # 默认文件名
         
         # 时间同步
         self.master_start_time = None  # 主机发送的开始时间戳
@@ -69,6 +70,11 @@ class OximeterDataCollector:
     def _process_command(self, command, sender_addr):
         """处理接收到的命令"""
         if command.startswith("PREPARE"):
+            # 检查是否包含文件名
+            parts = command.split(',')
+            if len(parts) > 1:
+                self.csv_file_name = parts[1]
+                print(f"将使用自定义文件名: {self.csv_file_name}")
             self._prepare_collection()
             
         elif command.startswith("START"):
@@ -111,10 +117,11 @@ class OximeterDataCollector:
             session_dir = os.path.join(self.data_dir, self.session_id)
             os.makedirs(session_dir, exist_ok=True)
             
-            self.csv_file_path = os.path.join(session_dir, "oximeter_data.csv")
+            # 使用自定义文件名或默认名称
+            self.csv_file_path = os.path.join(session_dir, self.csv_file_name)
             
             self.is_prepared = True
-            print("数据采集已准备就绪")
+            print(f"数据采集已准备就绪，将保存到: {self.csv_file_path}")
             
         except Exception as e:
             print(f"准备数据采集时出错: {str(e)}")
@@ -140,6 +147,7 @@ class OximeterDataCollector:
             f.write(f"主机开始时间戳: {self.master_start_time}\n")
             f.write(f"本地开始时间戳: {self.local_start_time}\n")
             f.write(f"时间偏差: {self.time_offset}\n")
+            f.write(f"文件名: {self.csv_file_name}\n")
             f.write(f"同步后校准时间: {datetime.datetime.now().isoformat()}\n")
         
         # 初始化CSV文件
@@ -253,6 +261,8 @@ def parse_arguments():
                         help='UDP监听端口')
     parser.add_argument('--data-dir', type=str, default=None,
                         help='数据保存目录')
+    parser.add_argument('--filename', type=str, default=None,
+                        help='自定义数据文件名(将被主机命令覆盖)')
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -266,6 +276,9 @@ if __name__ == '__main__':
     
     if args.data_dir:
         collector.data_dir = args.data_dir
+        
+    if args.filename:
+        collector.csv_file_name = args.filename
     
     # 启动UDP监听
     collector.start_udp_listener()

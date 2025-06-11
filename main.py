@@ -75,21 +75,26 @@ class DataCollectionSystem:
         right_frame = ttk.Frame(main_frame)
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, padx=5, pady=5)
         
-        # 录制设置区域
-        settings_frame = ttk.LabelFrame(right_frame, text="录制设置")
+        # 实验设置区域
+        settings_frame = ttk.LabelFrame(right_frame, text="实验设置")
         settings_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        # 录制时长设置
-        ttk.Label(settings_frame, text="录制时长(分钟):").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+        # 实验时长设置
+        ttk.Label(settings_frame, text="实验时长(分钟):").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
         self.duration_var = tk.StringVar(value="1")
         ttk.Entry(settings_frame, textvariable=self.duration_var, width=10).grid(row=0, column=1, padx=5, pady=5)
         
+        # 视频文件名设置
+        ttk.Label(settings_frame, text="视频文件名:").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
+        self.video_filename_var = tk.StringVar(value="video.mp4")
+        ttk.Entry(settings_frame, textvariable=self.video_filename_var, width=20).grid(row=1, column=1, padx=5, pady=5, columnspan=2, sticky=tk.W)
+        
         # 保存路径设置
-        ttk.Label(settings_frame, text="数据保存路径:").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
+        ttk.Label(settings_frame, text="数据保存路径:").grid(row=2, column=0, padx=5, pady=5, sticky=tk.W)
         self.save_path_var = tk.StringVar(value=self.data_dir)
         path_entry = ttk.Entry(settings_frame, textvariable=self.save_path_var, width=30)
-        path_entry.grid(row=1, column=1, padx=5, pady=5)
-        ttk.Button(settings_frame, text="浏览...", command=self.browse_save_path).grid(row=1, column=2, padx=5, pady=5)
+        path_entry.grid(row=2, column=1, padx=5, pady=5)
+        ttk.Button(settings_frame, text="浏览...", command=self.browse_save_path).grid(row=2, column=2, padx=5, pady=5)
         
         # 从机IP设置
         ip_frame = ttk.LabelFrame(right_frame, text="从机IP配置")
@@ -204,12 +209,12 @@ class DataCollectionSystem:
         threading.Thread(target=scan_task, daemon=True).start()
     
     def prepare_experiment(self):
-        """准备录制"""
+        """准备实验"""
         try:
             # 验证输入
             minutes = int(self.duration_var.get())
             if minutes <= 0:
-                raise ValueError("录制时长必须大于0")
+                raise ValueError("实验时长必须大于0")
             # 将分钟转换为秒
             self.experiment_duration = minutes * 60
             
@@ -218,7 +223,15 @@ class DataCollectionSystem:
             if not self.client_ips:
                 raise ValueError("未配置从机IP地址")
             
-            # 创建录制会话
+            # 获取视频文件名
+            self.video_filename = self.video_filename_var.get().strip()
+            if not self.video_filename:
+                self.video_filename = "video.mp4"
+            # 确保有正确的扩展名
+            if not self.video_filename.lower().endswith(('.mp4', '.avi', '.mov', '.wmv')):
+                self.video_filename += '.mp4'
+            
+            # 创建实验会话
             self.session_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             session_dir = os.path.join(self.data_dir, self.session_id)
             os.makedirs(session_dir, exist_ok=True)
@@ -230,12 +243,13 @@ class DataCollectionSystem:
                 if not self.cap.isOpened():
                     raise ValueError(f"无法打开摄像头 {camera_idx}")
             
-            # 发送准备命令到从机
+            # 发送准备命令到从机，包含生理数据文件名
+            oxygen_filename = f"oxygen_data_{self.session_id}.csv"  # 默认生理数据文件名
             for ip in self.client_ips:
-                self.send_udp_command(ip, "PREPARE")
+                self.send_udp_command(ip, f"PREPARE,{oxygen_filename}")
             
             # 更新UI
-            self.status_var.set("录制准备就绪")
+            self.status_var.set("实验准备就绪")
             self.start_btn.config(state=tk.NORMAL)
             self.prepare_btn.config(state=tk.DISABLED)
             
@@ -243,7 +257,7 @@ class DataCollectionSystem:
             messagebox.showerror("准备失败", str(e))
     
     def start_experiment(self):
-        """开始录制"""
+        """开始实验"""
         try:
             # 更新UI状态
             self.start_btn.config(state=tk.DISABLED)
@@ -251,7 +265,7 @@ class DataCollectionSystem:
             
             # 设置视频输出
             session_dir = os.path.join(self.data_dir, self.session_id)
-            video_path = os.path.join(session_dir, "video.mp4")
+            video_path = os.path.join(session_dir, self.video_filename)
             
             # 获取摄像头属性
             width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -276,7 +290,8 @@ class DataCollectionSystem:
             # 写入同步信息
             sync_file = os.path.join(session_dir, "sync_info.txt")
             with open(sync_file, "w") as f:
-                f.write(f"录制开始时间: {datetime.datetime.now().isoformat()}\n")
+                f.write(f"实验开始时间: {datetime.datetime.now().isoformat()}\n")
+                f.write(f"视频文件名: {self.video_filename}\n")
                 f.write(f"命令发送时间戳: {command_time}\n")
                 f.write(f"视频开始时间戳: {self.start_time}\n")
             
