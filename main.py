@@ -31,7 +31,7 @@ class DataCollectionSystem:
         self.record_thread = None
         self.client_ips = []
         self.start_time = None
-        self.experiment_duration = 1  # 默认实验时长(分钟)
+        self.experiment_duration = 1  # 默认录制时长(分钟)
         self.data_dir = os.path.join(os.getcwd(), "experiment_data")
         
         # UDP设置
@@ -79,8 +79,8 @@ class DataCollectionSystem:
         settings_frame = ttk.LabelFrame(right_frame, text="录制设置")
         settings_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        # 实验时长设置
-        ttk.Label(settings_frame, text="实验时长(分钟):").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+        # 录制时长设置
+        ttk.Label(settings_frame, text="录制时长(分钟):").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
         self.duration_var = tk.StringVar(value="1")
         ttk.Entry(settings_frame, textvariable=self.duration_var, width=10).grid(row=0, column=1, padx=5, pady=5)
         
@@ -204,12 +204,12 @@ class DataCollectionSystem:
         threading.Thread(target=scan_task, daemon=True).start()
     
     def prepare_experiment(self):
-        """准备实验"""
+        """准备录制"""
         try:
             # 验证输入
             minutes = int(self.duration_var.get())
             if minutes <= 0:
-                raise ValueError("实验时长必须大于0")
+                raise ValueError("录制时长必须大于0")
             # 将分钟转换为秒
             self.experiment_duration = minutes * 60
             
